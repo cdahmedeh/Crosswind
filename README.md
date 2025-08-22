@@ -6,7 +6,7 @@ Simulator must be compatible with FSUIPC module or XPUIPC plugin. The tool has o
 
 ## Support
 
-Report any issues with you may have. Open to contributions and pull requests. And feedback especially.
+Report any issues you may have. Open to contributions and pull requests. And feedback especially.
 
 ## External Libraries
 
