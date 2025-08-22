@@ -9,14 +9,19 @@ public class FSUIPCService
     
     private readonly ILogger<FSUIPCService> _logger;
     
-    private Offset<FsLongitude> offsetLongitude = new Offset<FsLongitude>(GroupName, 0x0568, 8);
-    private Offset<FsLatitude> offsetLatitude = new Offset<FsLatitude>(GroupName, 0x0560, 8);
+    private readonly Offset<FsLongitude> _offsetLongitude = new Offset<FsLongitude>(GroupName, 0x0568, 8);
+    private readonly Offset<FsLatitude> _offsetLatitude = new Offset<FsLatitude>(GroupName, 0x0560, 8);
     
-    private Offset<uint> offsetIndicatedAirSpeed = new Offset<uint>(GroupName, 0x02BC);
-    private Offset<uint> offsetTrueAirSpeed = new Offset<uint>(GroupName, 0x02B8);
-    private Offset<uint> offsetGroundSpeed = new Offset<uint>(GroupName, 0x02B4);
+    private readonly Offset<uint> _offsetIndicatedAirSpeed = new Offset<uint>(GroupName, 0x02BC);
+    private readonly Offset<uint> _offsetTrueAirSpeed = new Offset<uint>(GroupName, 0x02B8);
+    private readonly Offset<uint> _offsetGroundSpeed = new Offset<uint>(GroupName, 0x02B4);
     
-    private Offset<ushort> offsetSquawkCode = new Offset<ushort>(GroupName, 0x0354);
+    private readonly Offset<long> _offsetAltitude = new Offset<long>(GroupName, 0x0570);
+    
+    private readonly Offset<uint> _offsetHeading = new Offset<uint>(GroupName, 0x0580);
+    private readonly Offset<short> _offsetMagneticVariation = new Offset<short>(GroupName, 0x02A0);
+    
+    private readonly Offset<uint> _offsetSquawkCode = new Offset<uint>(GroupName, 0x0354);
     
     public FSUIPCService(ILogger<FSUIPCService> logger)
     {
@@ -30,7 +35,6 @@ public class FSUIPCService
             _logger.LogInformation("Connecting to FSUIPC");
             
             FSUIPCConnection.Open();
-            FSUIPCConnection.Process(GroupName);
             
             _logger.LogInformation("Connected successfully to FSUIPC");
             
@@ -44,29 +48,53 @@ public class FSUIPCService
         }
     }
 
+    public void Refresh()
+    {
+        FSUIPCConnection.Process(GroupName);
+    }
+
     public Coordinates GetCoordinates()
     {
-        double latitude = offsetLatitude.Value.DecimalDegrees;
-        double longitude = offsetLongitude.Value.DecimalDegrees;
+        double latitude = _offsetLatitude.Value.DecimalDegrees;
+        double longitude = _offsetLongitude.Value.DecimalDegrees;
     
         return new Coordinates(latitude, longitude);
     }
 
     public string GetSquawkCode()
     {
-        ushort squawkCode = offsetSquawkCode.Value;
+        uint squawkCode = _offsetSquawkCode.Value;
         return squawkCode.ToString("X4");
     }
 
     public Speeds GetSpeeds()
     {
-        double indiactedAirSpeed = offsetIndicatedAirSpeed.Value / 128.0;
-        double trueAirSpeed = offsetTrueAirSpeed.Value / 128.0;
-        double groundSpeed = (offsetGroundSpeed.Value / 65536.0) * 1.943844; 
+        double indicatedAirSpeed = _offsetIndicatedAirSpeed.Value / 128.0;
+        double trueAirSpeed = _offsetTrueAirSpeed.Value / 128.0;
+        double groundSpeed = (_offsetGroundSpeed.Value / 65536.0) * 1.943844; 
         
-        return new Speeds(indiactedAirSpeed, trueAirSpeed, groundSpeed);
+        return new Speeds(indicatedAirSpeed, trueAirSpeed, groundSpeed);
+    }
+
+    public Altitude GetAltitude()
+    {
+        double indicatedAltitude = (_offsetAltitude.Value / 65536.0 / 65536.0) * 3.28084;
+        
+        return new Altitude(indicatedAltitude);
+    }
+
+    public Heading GetHeading()
+    {
+        double trueHeading = ((double)_offsetHeading.Value) * 360 / (65536.0 * 65536.0); 
+        
+        double magneticVariation =  ((double)_offsetMagneticVariation.Value) * 360 / (65536.0); 
+        double magneticHeading = trueHeading - magneticVariation;
+        
+        return new Heading(magneticHeading, trueHeading);
     }
 }
 
 public record Coordinates(double Latitude, double Longitude);
 public record Speeds(double IndicatedAirSpeed, double TrueAirSpeed, double GroundSpeed);
+public record Altitude(double IndicatedAltitude);
+public record Heading(double IndicatedHeading, double TrueHeading);

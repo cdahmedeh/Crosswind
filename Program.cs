@@ -19,9 +19,18 @@ class Program
         var service = provider.GetRequiredService<FSUIPCService>();
         service.Connect();
 
-        Console.WriteLine(service.GetCoordinates());
-        Console.WriteLine(service.GetSquawkCode());
-        Console.WriteLine(service.GetSpeeds());
+        while (true)
+        {
+            service.Refresh();
+            
+            Console.WriteLine(service.GetCoordinates());
+            Console.WriteLine(service.GetSquawkCode());
+            Console.WriteLine(service.GetSpeeds());
+            Console.WriteLine(service.GetAltitude());
+            Console.WriteLine(service.GetHeading());
+            
+            Thread.Sleep(1000);
+        }
     }
 }
 
