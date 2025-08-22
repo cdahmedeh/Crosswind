@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main()
     {
         Console.WriteLine("Welcome To LegacySimBridge!");
 
@@ -28,8 +28,8 @@ class Program
             Console.WriteLine(service.GetSpeeds());
             Console.WriteLine(service.GetAltitude());
             Console.WriteLine(service.GetHeading());
-            
-            Thread.Sleep(1000);
+
+            await Task.Delay(1000);
         }
     }
 }
