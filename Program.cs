@@ -20,6 +20,8 @@ class Program
         service.Connect();
 
         Console.WriteLine(service.GetCoordinates());
+        Console.WriteLine(service.GetSquawkCode());
+        Console.WriteLine(service.GetSpeeds());
     }
 }
 
