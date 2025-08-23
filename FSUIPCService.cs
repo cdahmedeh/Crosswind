@@ -17,9 +17,25 @@ public class FSUIPCService
     private readonly Offset<uint> _offsetGroundSpeed = new Offset<uint>(GroupName, 0x02B4);
     
     private readonly Offset<long> _offsetAltitude = new Offset<long>(GroupName, 0x0570);
+    private readonly Offset<long> _offsetRadioAltitude = new Offset<long>(GroupName, 0x31E4);
+    private readonly Offset<uint> _offsetAltimeterPressure = new Offset<uint>(GroupName, 0x0330);
     
     private readonly Offset<uint> _offsetHeading = new Offset<uint>(GroupName, 0x0580);
     private readonly Offset<short> _offsetMagneticVariation = new Offset<short>(GroupName, 0x02A0);
+    
+    private readonly Offset<int> _offsetVerticalSpeed = new Offset<int>(GroupName, 0x02C8);
+    
+    private readonly Offset<int> _offsetPitch = new Offset<int>(GroupName, 0x057B);
+    private readonly Offset<int> _offsetBank = new Offset<int>(GroupName, 0x057C);
+    
+    private readonly Offset<short> _offsetTurnRate = new Offset<short>(GroupName, 0x037C);
+    
+    private readonly Offset<short> _offsetGForce = new Offset<short>(GroupName, 0x11BA);
+    
+    private readonly Offset<ushort> _offsetPauseIndicator = new Offset<ushort>(GroupName, 0x0264);
+    private readonly Offset<ushort> _offsetSlewMode = new Offset<ushort>(GroupName, 0x05DC);
+    
+    private readonly Offset<short> _offsetLocalTimeOffset = new Offset<short>(GroupName, 0x05DC);
     
     private readonly Offset<uint> _offsetSquawkCode = new Offset<uint>(GroupName, 0x0354);
     
@@ -76,11 +92,13 @@ public class FSUIPCService
         return new Speeds(indicatedAirSpeed, trueAirSpeed, groundSpeed);
     }
 
-    public Altitude GetAltitude()
+    public Altitudes GetAltitudes()
     {
         double indicatedAltitude = (_offsetAltitude.Value / 65536.0 / 65536.0) * 3.28084;
+        double aboveGroundAltitude = (_offsetRadioAltitude.Value / 65536.0) * 3.28084;
+        double altimeterPressure = (_offsetAltimeterPressure.Value) / (16.0 * 33.8638866667);
         
-        return new Altitude(indicatedAltitude);
+        return new Altitudes(indicatedAltitude, aboveGroundAltitude, altimeterPressure);
     }
 
     public Heading GetHeading()
@@ -92,9 +110,39 @@ public class FSUIPCService
         
         return new Heading(magneticHeading, trueHeading);
     }
+
+    public VerticalSpeeds GetVerticalSpeeds()
+    {
+        double verticalSpeed = _offsetVerticalSpeed.Value * 60.0 * 3.28084 / 256;
+        
+        return new VerticalSpeeds(verticalSpeed);
+    }
+
+    public Rates GetRates()
+    {
+        double pitch = (_offsetPitch.Value * 360.0) / 65536.0 / 65536.0;
+        double bank = (_offsetBank.Value * 360.0) / 65536.0 / 65536.0;
+
+        double turnRate = (_offsetTurnRate.Value / 512.0) * 3.0;
+
+        double gForce = (_offsetGForce.Value) / 625.0;
+
+        return new Rates(pitch, bank, turnRate, gForce);
+    }
+
+    public SimulatorStatus GetSimulatorStatus()
+    {
+        bool paused = _offsetPauseIndicator.Value == 1;
+        bool slewMode = _offsetSlewMode.Value == 1;
+
+        return new SimulatorStatus(paused, slewMode);
+    }
 }
 
 public record Coordinates(double Latitude, double Longitude);
 public record Speeds(double IndicatedAirSpeed, double TrueAirSpeed, double GroundSpeed);
-public record Altitude(double IndicatedAltitude);
+public record Altitudes(double IndicatedAltitude, double AboveGroundAltitude, double AltimeterPressure);
 public record Heading(double IndicatedHeading, double TrueHeading);
+public record VerticalSpeeds(double VerticalSpeed);
+public record Rates(double Pitch, double Bank, double TurnRate, double GForce);
+public record SimulatorStatus(bool Paused, bool SlewMode);
