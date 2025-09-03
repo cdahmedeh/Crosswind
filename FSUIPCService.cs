@@ -3,7 +3,11 @@ using Microsoft.Extensions.Logging;
 
 namespace LegacySimBridge;
 
-public class FSUIPCService
+public class FSUIPCTelemetry : Telemetry
+{
+    
+}
+public class FSUIPCService : ITelemetryService<FSUIPCTelemetry>
 {
     private const string GroupName = "LegacySimBridge";
     
@@ -48,101 +52,76 @@ public class FSUIPCService
     {
         try
         {
-            _logger.LogInformation("Connecting to FSUIPC");
-            
+            _logger.LogInformation("Connecting to FSUIPC...");
             FSUIPCConnection.Open();
-            
-            _logger.LogInformation("Connected successfully to FSUIPC");
-            
+            _logger.LogInformation("Connected successfully to FSUIPC!");
+            FSUIPCVersion connectionVersion = FSUIPCConnection.FSUIPCVersion;
+            _logger.LogInformation($"Detected FSUIPC version: {connectionVersion}");
+            FsVersion connectionFlightSim = FSUIPCConnection.FlightSimVersionConnected;
+            _logger.LogInformation($"Detected Flight Simulator: {connectionFlightSim}");
             return true;
         }
         catch (FSUIPCException ex)
         {
-            _logger.LogError(ex, "Failed to connect to FSUIPC");
-            
+            _logger.LogError(ex, "Failed to connect to FSUIPC!");
             return false;
         }
     }
 
-    public void Refresh()
+    public bool Disconnect()
+    {
+        try
+        {
+            _logger.LogInformation("Closing connection to FSUIPC");
+            FSUIPCConnection.Close();
+            _logger.LogInformation("Disconnected successfully from FSUIPC");
+            return true;
+        }
+        catch (FSUIPCException ex)
+        {
+            _logger.LogError(ex, "Failed to disconnect from FSUIPC");
+            return false;            
+        }
+    }
+
+    public bool Refresh()
     {
         FSUIPCConnection.Process(GroupName);
+        return true;
     }
 
-    public Coordinates GetCoordinates()
+    public FSUIPCTelemetry GetTelemetry()
     {
-        double latitude = _offsetLatitude.Value.DecimalDegrees;
-        double longitude = _offsetLongitude.Value.DecimalDegrees;
-    
-        return new Coordinates(latitude, longitude);
-    }
-
-    public string GetSquawkCode()
-    {
-        uint squawkCode = _offsetSquawkCode.Value;
-        return squawkCode.ToString("X4");
-    }
-
-    public Speeds GetSpeeds()
-    {
-        double indicatedAirSpeed = _offsetIndicatedAirSpeed.Value / 128.0;
-        double trueAirSpeed = _offsetTrueAirSpeed.Value / 128.0;
-        double groundSpeed = (_offsetGroundSpeed.Value / 65536.0) * 1.943844; 
+        FSUIPCTelemetry telemetry = new FSUIPCTelemetry();
         
-        return new Speeds(indicatedAirSpeed, trueAirSpeed, groundSpeed);
-    }
-
-    public Altitudes GetAltitudes()
-    {
-        double indicatedAltitude = (_offsetAltitude.Value / 65536.0 / 65536.0) * 3.28084;
-        double aboveGroundAltitude = (_offsetRadioAltitude.Value / 65536.0) * 3.28084;
-        double altimeterPressure = (_offsetAltimeterPressure.Value) / (16.0 * 33.8638866667);
+        telemetry.SquawkCode = _offsetSquawkCode.Value.ToString("X4");
         
-        return new Altitudes(indicatedAltitude, aboveGroundAltitude, altimeterPressure);
-    }
-
-    public Heading GetHeading()
-    {
-        double trueHeading = ((double)_offsetHeading.Value) * 360 / (65536.0 * 65536.0); 
+        telemetry.Longitude = _offsetLongitude.Value.DecimalDegrees;
+        telemetry.Latitude = _offsetLatitude.Value.DecimalDegrees;
         
-        double magneticVariation =  ((double)_offsetMagneticVariation.Value) * 360 / (65536.0); 
-        double magneticHeading = trueHeading - magneticVariation;
+        telemetry.IndicatedAirSpeed = (int) (_offsetIndicatedAirSpeed.Value / 128.0);
+        telemetry.TrueAirSpeed = (int) (_offsetTrueAirSpeed.Value / 128.0);
+        telemetry.GroundSpeed = (int) ((_offsetGroundSpeed.Value / 65536.0) * 1.943844);
+        telemetry.VerticalSpeed = (int)(_offsetVerticalSpeed.Value * 60.0 * 3.28084 / 256);
+       
+        telemetry.IndicatedAltitude = (int) ((_offsetAltitude.Value / 65536.0 / 65536.0) * 3.28084);
+        telemetry.RadioAltitude = (int) ((_offsetRadioAltitude.Value / 65536.0) * 3.28084);
+        telemetry.AltimeterPressure = (_offsetAltimeterPressure.Value) / (16.0 * 33.8638866667);
         
-        return new Heading(magneticHeading, trueHeading);
-    }
+        telemetry.TrueHeading = (int)(((double)_offsetHeading.Value) * 360 / (65536.0 * 65536.0)); 
+        int magneticVariation =  (int)(((double)_offsetMagneticVariation.Value) * 360 / (65536.0)); 
+        telemetry.IndicatedHeading = telemetry.TrueHeading - magneticVariation;
+       
+        telemetry.Pitch = (int)((_offsetPitch.Value * 360.0) / 65536.0 / 65536.0) * -1;
+        telemetry.Bank = (int)((_offsetBank.Value * 360.0) / 65536.0 / 65536.0) * -1;
 
-    public VerticalSpeeds GetVerticalSpeeds()
-    {
-        double verticalSpeed = _offsetVerticalSpeed.Value * 60.0 * 3.28084 / 256;
+        telemetry.TurnRate = (int)((_offsetTurnRate.Value / 512.0) * 3.0);
+
+        telemetry.GForce = (_offsetGForce.Value) / 625.0;
         
-        return new VerticalSpeeds(verticalSpeed);
-    }
-
-    public Rates GetRates()
-    {
-        double pitch = (_offsetPitch.Value * 360.0) / 65536.0 / 65536.0;
-        double bank = (_offsetBank.Value * 360.0) / 65536.0 / 65536.0;
-
-        double turnRate = (_offsetTurnRate.Value / 512.0) * 3.0;
-
-        double gForce = (_offsetGForce.Value) / 625.0;
-
-        return new Rates(pitch, bank, turnRate, gForce);
-    }
-
-    public SimulatorStatus GetSimulatorStatus()
-    {
-        bool paused = _offsetPauseIndicator.Value == 1;
-        bool slewMode = _offsetSlewMode.Value == 1;
-
-        return new SimulatorStatus(paused, slewMode);
+        telemetry.Paused = _offsetPauseIndicator.Value == 1;
+        telemetry.SlewMode = _offsetSlewMode.Value == 1; 
+        
+        return telemetry;
     }
 }
-
-public record Coordinates(double Latitude, double Longitude);
-public record Speeds(double IndicatedAirSpeed, double TrueAirSpeed, double GroundSpeed);
-public record Altitudes(double IndicatedAltitude, double AboveGroundAltitude, double AltimeterPressure);
-public record Heading(double IndicatedHeading, double TrueHeading);
-public record VerticalSpeeds(double VerticalSpeed);
-public record Rates(double Pitch, double Bank, double TurnRate, double GForce);
-public record SimulatorStatus(bool Paused, bool SlewMode);

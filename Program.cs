@@ -27,43 +27,9 @@ class Program
         {
             fsService.Refresh();
             
-            var coordinates = fsService.GetCoordinates();
-            var squawkCode = fsService.GetSquawkCode();
-            var speeds = fsService.GetSpeeds();
-            var altitudes = fsService.GetAltitudes();
-            var heading = fsService.GetHeading();
-            var verticalSpeeds = fsService.GetVerticalSpeeds();
-            var rates = fsService.GetRates();
-            var simulatorStatus = fsService.GetSimulatorStatus();
-
-            SimlinkTelemetry telemetry = new SimlinkTelemetry(
-                squawkCode,
-                coordinates.Latitude,
-                coordinates.Longitude,
-                (int) speeds.IndicatedAirSpeed,
-                (int) speeds.TrueAirSpeed,
-                (int) speeds.GroundSpeed,
-                (int) altitudes.IndicatedAltitude,
-                (int) altitudes.AboveGroundAltitude,
-                (int) (100 * altitudes.AltimeterPressure),
-                (int) heading.TrueHeading,
-                (int) heading.IndicatedHeading,
-                (int) verticalSpeeds.VerticalSpeed,
-                (int) (rates.Pitch * -1),
-                (int) (rates.Bank * -1),
-                (int) (rates.TurnRate * -1),
-                rates.GForce,
-                simulatorStatus.Paused,
-                simulatorStatus.SlewMode,
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            );
-            
-            Console.WriteLine(simulatorStatus);
-
+            var telemetry = fsService.GetTelemetry();
             Console.WriteLine(telemetry);
-            
             slService.Send(telemetry);
-            
             await Task.Delay(1000);
         }
     }

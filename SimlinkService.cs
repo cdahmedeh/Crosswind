@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LegacySimBridge;
 
-public class SimlinkService
+public class SimlinkService : IFSUIPCReceiver
 {
     private const string MappingName = "NGSIMCONNECT";
     private const int MappingSizeBytes = 4096;           // matches what you saw; keep it.
@@ -93,6 +93,65 @@ public class SimlinkService
         _accessor.Flush();
     }
 
+    public bool Send(FSUIPCTelemetry telemetry)
+    {
+        string json = EncodeFSUIPCTelemetry(telemetry);
+        WriteToSimlinkMemoryMap(json);
+        return true;
+    }
+   
+     private string EncodeFSUIPCTelemetry(FSUIPCTelemetry telemetry)
+     {
+         var root = new Root(
+             Platform: new Platform(
+                 Simlink: new Simlink("1.1.39.1902"),
+                 Os: new Os("windows"),
+                 Simulator: new Simulator("FSUIPC Compatible Simulator")
+             ),
+             Aircraft: new Aircraft(
+                 Squawk: telemetry.SquawkCode,
+                 VerticalSpeedFpm: telemetry.VerticalSpeed,
+                 GForce: telemetry.GForce,
+                 Altitude: new Altitude(
+                     True: telemetry.IndicatedAltitude,
+                     Indicated: telemetry.IndicatedAltitude,
+                     Pressure: (int)(telemetry.AltimeterPressure * 100),
+                     Agl: telemetry.RadioAltitude,
+                     PressureXp12: 0.0,
+                     SeaLevelPressureInHg: 29.92
+                 ),
+                 Position: new Position(
+                     Latitude: telemetry.Latitude,
+                     Longitude: telemetry.Longitude
+                 ),
+                 Speed: new Speed(
+                     GroundSpeedKts: telemetry.GroundSpeed,
+                     IndicatedKts: telemetry.IndicatedAirSpeed,
+                     TrueKts: telemetry.TrueAirSpeed
+                 ),
+                 Status: new Status(
+                     BankDeg: telemetry.Bank,
+                     TurnRateDegPerSec: telemetry.TurnRate,
+                     MagneticHeadingDeg: telemetry.IndicatedHeading,
+                     PitchDeg: telemetry.Pitch,
+                     TrueHeadingDeg: telemetry.TrueHeading,
+                     TrueTrackDeg: telemetry.TrueHeading
+                 )
+             ),
+             System: new SystemState(
+                 Paused: telemetry.Paused ? 1 : 0,
+                 Slew: telemetry.SlewMode ? 1 : 0,
+                 TimeSeconds: DateTimeOffset.UtcNow.ToUnixTimeSeconds(), 
+                 TimeZoneOffsetSeconds: 0
+            )
+        );
+
+        var options = new JsonSerializerOptions { };
+        var json = JsonSerializer.Serialize(root, options);
+        
+        return json;
+    }
+    
     private string EncodeSimlinkTelemetry(SimlinkTelemetry telemetry)
     {
         var root = new Root(
