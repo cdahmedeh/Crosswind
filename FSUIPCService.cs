@@ -3,15 +3,13 @@ using Microsoft.Extensions.Logging;
 
 namespace LegacySimBridge;
 
-public class FSUIPCTelemetry : Telemetry
-{
-    
-}
-public class FSUIPCService : ITelemetryService<FSUIPCTelemetry>
+public class FSUIPCTelemetry : Telemetry;
+
+public class FSUIPCService(ILogger<FSUIPCService> logger) : ITelemetryService<FSUIPCTelemetry>
 {
     private const string GroupName = "LegacySimBridge";
-    
-    private readonly ILogger<FSUIPCService> _logger;
+   
+    private readonly Offset<uint> _offsetSquawkCode = new Offset<uint>(GroupName, 0x0354);
     
     private readonly Offset<FsLongitude> _offsetLongitude = new Offset<FsLongitude>(GroupName, 0x0568, 8);
     private readonly Offset<FsLatitude> _offsetLatitude = new Offset<FsLatitude>(GroupName, 0x0560, 8);
@@ -19,6 +17,7 @@ public class FSUIPCService : ITelemetryService<FSUIPCTelemetry>
     private readonly Offset<uint> _offsetIndicatedAirSpeed = new Offset<uint>(GroupName, 0x02BC);
     private readonly Offset<uint> _offsetTrueAirSpeed = new Offset<uint>(GroupName, 0x02B8);
     private readonly Offset<uint> _offsetGroundSpeed = new Offset<uint>(GroupName, 0x02B4);
+    private readonly Offset<int> _offsetVerticalSpeed = new Offset<int>(GroupName, 0x02C8);
     
     private readonly Offset<long> _offsetAltitude = new Offset<long>(GroupName, 0x0570);
     private readonly Offset<long> _offsetRadioAltitude = new Offset<long>(GroupName, 0x31E4);
@@ -26,44 +25,31 @@ public class FSUIPCService : ITelemetryService<FSUIPCTelemetry>
     
     private readonly Offset<uint> _offsetHeading = new Offset<uint>(GroupName, 0x0580);
     private readonly Offset<short> _offsetMagneticVariation = new Offset<short>(GroupName, 0x02A0);
-    
-    private readonly Offset<int> _offsetVerticalSpeed = new Offset<int>(GroupName, 0x02C8);
+    private readonly Offset<short> _offsetTurnRate = new Offset<short>(GroupName, 0x037C);
     
     private readonly Offset<int> _offsetPitch = new Offset<int>(GroupName, 0x057B);
     private readonly Offset<int> _offsetBank = new Offset<int>(GroupName, 0x057C);
-    
-    private readonly Offset<short> _offsetTurnRate = new Offset<short>(GroupName, 0x037C);
-    
     private readonly Offset<short> _offsetGForce = new Offset<short>(GroupName, 0x11BA);
     
     private readonly Offset<ushort> _offsetPauseIndicator = new Offset<ushort>(GroupName, 0x0264);
     private readonly Offset<ushort> _offsetSlewMode = new Offset<ushort>(GroupName, 0x05DC);
     
-    private readonly Offset<short> _offsetLocalTimeOffset = new Offset<short>(GroupName, 0x05DC);
-    
-    private readonly Offset<uint> _offsetSquawkCode = new Offset<uint>(GroupName, 0x0354);
-    
-    public FSUIPCService(ILogger<FSUIPCService> logger)
-    {
-        _logger = logger;
-    }
-    
     public bool Connect()
     {
         try
         {
-            _logger.LogInformation("Connecting to FSUIPC...");
+            logger.LogInformation("Connecting to FSUIPC...");
             FSUIPCConnection.Open();
-            _logger.LogInformation("Connected successfully to FSUIPC!");
+            logger.LogInformation("Connected successfully to FSUIPC!");
             FSUIPCVersion connectionVersion = FSUIPCConnection.FSUIPCVersion;
-            _logger.LogInformation($"Detected FSUIPC version: {connectionVersion}");
+            logger.LogInformation($"Detected FSUIPC version: {connectionVersion}");
             FsVersion connectionFlightSim = FSUIPCConnection.FlightSimVersionConnected;
-            _logger.LogInformation($"Detected Flight Simulator: {connectionFlightSim}");
+            logger.LogInformation($"Detected Flight Simulator: {connectionFlightSim}");
             return true;
         }
         catch (FSUIPCException ex)
         {
-            _logger.LogError(ex, "Failed to connect to FSUIPC!");
+            logger.LogError(ex, "Failed to connect to FSUIPC!");
             return false;
         }
     }
@@ -72,21 +58,23 @@ public class FSUIPCService : ITelemetryService<FSUIPCTelemetry>
     {
         try
         {
-            _logger.LogInformation("Closing connection to FSUIPC");
+            logger.LogInformation("Closing connection to FSUIPC...");
             FSUIPCConnection.Close();
-            _logger.LogInformation("Disconnected successfully from FSUIPC");
+            logger.LogInformation("Disconnected successfully from FSUIPC!");
             return true;
         }
         catch (FSUIPCException ex)
         {
-            _logger.LogError(ex, "Failed to disconnect from FSUIPC");
+            logger.LogError(ex, "Failed to disconnect from FSUIPC!");
             return false;            
         }
     }
 
     public bool Refresh()
     {
+        logger.LogInformation("Processing and refreshing FSUIPC offsets...");
         FSUIPCConnection.Process(GroupName);
+        logger.LogInformation("FSUIPC offset values processed.");
         return true;
     }
 
