@@ -6,21 +6,14 @@ using Microsoft.Extensions.Logging;
 
 namespace LegacySimBridge;
 
-public class SimlinkService : IFSUIPCReceiver
+public class SimlinkService(ILogger<SimlinkService> logger) : IFSUIPCReceiver
 {
+    private const string MutexName = "SIMLINK_PLUGIN";
     private const string MappingName = "NGSIMCONNECT";
     private const int MappingSizeBytes = 4096;           // matches what you saw; keep it.
-    private const string MutexName = "SIMLINK_PLUGIN";
-    private static readonly Encoding Utf16 = Encoding.Unicode; // UTF-16LE on Windows
-    
-    private readonly ILogger<SimlinkService> _logger;
+    private static readonly Encoding DefaultEncoding = Encoding.Unicode; // UTF-16LE on Windows
     
     private MemoryMappedViewAccessor _accessor;
-
-    public SimlinkService(ILogger<SimlinkService> logger)
-    {
-        _logger = logger;
-    }
 
     public bool Connect()
     {
@@ -29,26 +22,27 @@ public class SimlinkService : IFSUIPCReceiver
         return true;
     }
     
-    public void Send(SimlinkTelemetry telemetry)
+    public bool Send(FSUIPCTelemetry telemetry)
     {
-        string json = EncodeSimlinkTelemetry(telemetry);
+        string json = EncodeFSUIPCTelemetry(telemetry);
         WriteToSimlinkMemoryMap(json);
+        return true;
     }
-
+    
     private void CreateSimlinkMutex()
     {
         using var pluginMutex = new Mutex(false, MutexName, out var createdNew);
 
         if (createdNew)
         {
-            _logger.LogInformation($"Mutex {MutexName} didn't exist so I has has been created.");
+            logger.LogInformation($"Mutex {MutexName} didn't exist so it has has been created.");
         }
         else
         {
-            _logger.LogInformation($"Mutx {MutexName} already exists so it will just be accessed.");
+            logger.LogInformation($"Mutex {MutexName} already exists so it will just be re-used.");
         }
         
-        _logger.LogInformation($"Mutex {MutexName} has been accessed.");
+        logger.LogInformation($"Mutex {MutexName} has been accessed.");
     }
 
     private void OpenSimlinkMemoryMap()
@@ -60,23 +54,23 @@ public class SimlinkService : IFSUIPCReceiver
 
             _accessor = mmf.CreateViewAccessor(0, MappingSizeBytes, MemoryMappedFileAccess.Write);
             
-            _logger.LogInformation($"Memory Map {MappingName} has been successfully opened.");
+            logger.LogInformation($"Memory Map {MappingName} has been successfully opened.");
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Access to Memory Map {MappingName} has been denied. Check if you have sufficient privileges.");
         }
         catch (IOException ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 $"Unable to write to to Memory Map {MappingName}.");
         }
     }
     
     private void WriteToSimlinkMemoryMap(string text)
     {
-        var bytes = Utf16.GetBytes(text);
+        var bytes = DefaultEncoding.GetBytes(text);
         int totalNeeded = bytes.Length + 2; // +2 for trailing 0x00 0x00
 
         if (totalNeeded > MappingSizeBytes)
@@ -93,13 +87,7 @@ public class SimlinkService : IFSUIPCReceiver
         _accessor.Flush();
     }
 
-    public bool Send(FSUIPCTelemetry telemetry)
-    {
-        string json = EncodeFSUIPCTelemetry(telemetry);
-        WriteToSimlinkMemoryMap(json);
-        return true;
-    }
-   
+
      private string EncodeFSUIPCTelemetry(FSUIPCTelemetry telemetry)
      {
          var root = new Root(
@@ -152,81 +140,8 @@ public class SimlinkService : IFSUIPCReceiver
         return json;
     }
     
-    private string EncodeSimlinkTelemetry(SimlinkTelemetry telemetry)
-    {
-        var root = new Root(
-            Platform: new Platform(
-                Simlink: new Simlink("1.1.39.1902"),
-                Os: new Os("windows"),
-                Simulator: new Simulator("FSUIPC Compatible Simulator")
-            ),
-            Aircraft: new Aircraft(
-                Squawk: telemetry.SquawkCode,
-                VerticalSpeedFpm: telemetry.VerticalSpeed,
-                GForce: telemetry.GForce,
-                Altitude: new Altitude(
-                    True: telemetry.IndicatedAltitude,
-                    Indicated: telemetry.IndicatedAltitude,
-                    Pressure: telemetry.AltimeterPressure,
-                    Agl: telemetry.AboveGroundAltitude,
-                    PressureXp12: 0.0,
-                    SeaLevelPressureInHg: 29.92
-                ),
-                Position: new Position(
-                    Latitude: telemetry.Latitude,
-                    Longitude: telemetry.Longitude
-                ),
-                Speed: new Speed(
-                    GroundSpeedKts: telemetry.GroundSpeed,
-                    IndicatedKts: telemetry.IndicatedAirSpeed,
-                    TrueKts: telemetry.TrueAirSpeed
-                ),
-                Status: new Status(
-                    BankDeg: telemetry.Bank,
-                    TurnRateDegPerSec: telemetry.TurnRate,
-                    MagneticHeadingDeg: telemetry.IndicatedHeading,
-                    PitchDeg: telemetry.Pitch,
-                    TrueHeadingDeg: telemetry.TrueHeading,
-                    TrueTrackDeg: telemetry.TrueHeading
-                )
-            ),
-            System: new SystemState(
-                Paused: telemetry.Paused ? 1 : 0,
-                Slew: telemetry.Slew ? 1 : 0,
-                TimeSeconds: telemetry.CurrentTime,
-                TimeZoneOffsetSeconds: 0
-            )
-        );
-
-        var options = new JsonSerializerOptions { };
-        var json = JsonSerializer.Serialize(root, options);
-        
-        return json;
-    }
 }
 
-public record SimlinkTelemetry (
-    string SquawkCode,
-    double Latitude,
-    double Longitude,
-    int IndicatedAirSpeed,
-    int TrueAirSpeed,
-    int GroundSpeed,
-    int IndicatedAltitude,
-    int AboveGroundAltitude,
-    int AltimeterPressure,
-    int TrueHeading,
-    int IndicatedHeading,
-    int VerticalSpeed,
-    int Pitch,
-    int Bank,
-    int TurnRate,
-    double GForce,
-    bool Paused,
-    bool Slew,
-    long CurrentTime
-    );
-    
 public sealed record Root(
     [property: JsonPropertyName("platform")] Platform Platform,
     [property: JsonPropertyName("aircraft")] Aircraft Aircraft,
