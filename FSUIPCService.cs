@@ -5,34 +5,55 @@ namespace LegacySimBridge;
 
 public class FSUIPCTelemetry : Telemetry;
 
+/// For pulling in flight data from FSUIPC.
 public class FSUIPCService(ILogger<FSUIPCService> logger) : ITelemetryService<FSUIPCTelemetry>
 {
+    // FSUIPC Group for association with this application instance and refreshing offset values.
     private const string GroupName = "LegacySimBridge";
-   
-    private readonly Offset<uint> _offsetSquawkCode = new Offset<uint>(GroupName, 0x0354);
+
+    // FSUIPC Offset Numerical Conversion
+    private const int   MaxInteger7Bit  = 1 << 7;
+    private const int   MaxInteger8Bit  = 1 << 8;
+    private const int   MaxInteger9Bit  = 1 << 9;
+    private const int   MaxInteger16Bit = 1 << 16;
+    private const long  MaxInteger32Bit = 1L << 32;
     
-    private readonly Offset<FsLongitude> _offsetLongitude = new Offset<FsLongitude>(GroupName, 0x0568, 8);
-    private readonly Offset<FsLatitude> _offsetLatitude = new Offset<FsLatitude>(GroupName, 0x0560, 8);
+    // Unit Conversion Factors
+    private const double MetersPerSecondToKnots = 1.943844;
+    private const double MetersToFeet = 3.28084;
+    private const double PascalsToInchMercury = 33.8638866667;
+    private const double VerticalSpeedFactor = 60.0;
+    private const double HeadingFullCircle = 360.0;
+    private const double PitchFactor = 0.1;
+    private const double BankFactor = -1;
+    private const double TurnRateFactor = 3.0;
+    private const double GForceConversionFactor = 625.0;
+
+    // FSUIPC Offsets
+    private readonly Offset<uint> _offsetSquawkCode          = new Offset<uint>(GroupName,        0x0354);
     
-    private readonly Offset<uint> _offsetIndicatedAirSpeed = new Offset<uint>(GroupName, 0x02BC);
-    private readonly Offset<uint> _offsetTrueAirSpeed = new Offset<uint>(GroupName, 0x02B8);
-    private readonly Offset<uint> _offsetGroundSpeed = new Offset<uint>(GroupName, 0x02B4);
-    private readonly Offset<int> _offsetVerticalSpeed = new Offset<int>(GroupName, 0x02C8);
+    private readonly Offset<FsLongitude> _offsetLongitude    = new Offset<FsLongitude>(GroupName, 0x0568, 8);
+    private readonly Offset<FsLatitude> _offsetLatitude      = new Offset<FsLatitude>(GroupName,  0x0560, 8);
     
-    private readonly Offset<long> _offsetAltitude = new Offset<long>(GroupName, 0x0570);
-    private readonly Offset<long> _offsetRadioAltitude = new Offset<long>(GroupName, 0x31E4);
-    private readonly Offset<uint> _offsetAltimeterPressure = new Offset<uint>(GroupName, 0x0330);
+    private readonly Offset<uint> _offsetIndicatedAirSpeed   = new Offset<uint>(GroupName,        0x02BC);
+    private readonly Offset<uint> _offsetTrueAirSpeed        = new Offset<uint>(GroupName,        0x02B8);
+    private readonly Offset<uint> _offsetGroundSpeed         = new Offset<uint>(GroupName,        0x02B4);
+    private readonly Offset<int> _offsetVerticalSpeed        = new Offset<int>(GroupName,         0x02C8);
     
-    private readonly Offset<uint> _offsetHeading = new Offset<uint>(GroupName, 0x0580);
-    private readonly Offset<short> _offsetMagneticVariation = new Offset<short>(GroupName, 0x02A0);
-    private readonly Offset<short> _offsetTurnRate = new Offset<short>(GroupName, 0x037C);
+    private readonly Offset<long> _offsetAltitude            = new Offset<long>(GroupName,        0x0570);
+    private readonly Offset<long> _offsetRadioAltitude       = new Offset<long>(GroupName,        0x31E4);
+    private readonly Offset<uint> _offsetAltimeterPressure   = new Offset<uint>(GroupName,        0x0330);
     
-    private readonly Offset<int> _offsetPitch = new Offset<int>(GroupName, 0x057B);
-    private readonly Offset<int> _offsetBank = new Offset<int>(GroupName, 0x057C);
-    private readonly Offset<short> _offsetGForce = new Offset<short>(GroupName, 0x11BA);
+    private readonly Offset<uint> _offsetHeading             = new Offset<uint>(GroupName,        0x0580);
+    private readonly Offset<short> _offsetMagneticVariation  = new Offset<short>(GroupName,       0x02A0);
+    private readonly Offset<short> _offsetTurnRate           = new Offset<short>(GroupName,       0x037C);
     
-    private readonly Offset<ushort> _offsetPauseIndicator = new Offset<ushort>(GroupName, 0x0264);
-    private readonly Offset<ushort> _offsetSlewMode = new Offset<ushort>(GroupName, 0x05DC);
+    private readonly Offset<int> _offsetPitch                = new Offset<int>(GroupName,         0x057B);
+    private readonly Offset<int> _offsetBank                 = new Offset<int>(GroupName,         0x057C);
+    private readonly Offset<short> _offsetGForce             = new Offset<short>(GroupName,       0x11BA);
+    
+    private readonly Offset<ushort> _offsetPauseIndicator    = new Offset<ushort>(GroupName,      0x0264);
+    private readonly Offset<ushort> _offsetSlewMode          = new Offset<ushort>(GroupName,      0x05DC);
     
     public bool Connect()
     {
@@ -72,44 +93,54 @@ public class FSUIPCService(ILogger<FSUIPCService> logger) : ITelemetryService<FS
 
     public bool Refresh()
     {
-        logger.LogInformation("Processing and refreshing FSUIPC offsets...");
-        FSUIPCConnection.Process(GroupName);
-        logger.LogInformation("FSUIPC offset values processed.");
-        return true;
+        try
+        {
+            logger.LogTrace("Processing and refreshing FSUIPC offsets...");
+            FSUIPCConnection.Process(GroupName);
+            logger.LogTrace("FSUIPC offset values processed.");
+            return true;
+        }
+        catch (FSUIPCException ex)
+        {
+            logger.LogError(ex, "Failed to process FSUIPC offsets!");
+            return false;
+        }
+
     }
 
     public FSUIPCTelemetry GetTelemetry()
     {
         FSUIPCTelemetry telemetry = new FSUIPCTelemetry();
         
-        telemetry.SquawkCode = _offsetSquawkCode.Value.ToString("X4");
+        telemetry.SquawkCode =            _offsetSquawkCode.Value.ToString("X4");
         
-        telemetry.Longitude = _offsetLongitude.Value.DecimalDegrees;
-        telemetry.Latitude = _offsetLatitude.Value.DecimalDegrees;
+        telemetry.Longitude =             _offsetLongitude.Value.DecimalDegrees;
+        telemetry.Latitude =              _offsetLatitude.Value.DecimalDegrees;
         
-        telemetry.IndicatedAirSpeed = (int) (_offsetIndicatedAirSpeed.Value / 128.0);
-        telemetry.TrueAirSpeed = (int) (_offsetTrueAirSpeed.Value / 128.0);
-        telemetry.GroundSpeed = (int) ((_offsetGroundSpeed.Value / 65536.0) * 1.943844);
-        telemetry.VerticalSpeed = (int)(_offsetVerticalSpeed.Value * 60.0 * 3.28084 / 256);
+        telemetry.IndicatedAirSpeed =    (int) ( ( _offsetIndicatedAirSpeed.Value    /   (double) MaxInteger7Bit   )                                         );
+        telemetry.TrueAirSpeed =         (int) ( ( _offsetTrueAirSpeed.Value         /   (double) MaxInteger7Bit   )                                         );
+        telemetry.GroundSpeed =          (int) ( ( _offsetGroundSpeed.Value          /   (double) MaxInteger16Bit  )    * MetersPerSecondToKnots             );
+        telemetry.VerticalSpeed =        (int) ( ( _offsetVerticalSpeed.Value        /   (double) MaxInteger7Bit   )    * MetersToFeet * VerticalSpeedFactor );
        
-        telemetry.IndicatedAltitude = (int) ((_offsetAltitude.Value / 65536.0 / 65536.0) * 3.28084);
-        telemetry.RadioAltitude = (int) ((_offsetRadioAltitude.Value / 65536.0) * 3.28084);
-        telemetry.AltimeterPressure = (_offsetAltimeterPressure.Value) / (16.0 * 33.8638866667);
+        telemetry.IndicatedAltitude =    (int) ( ( _offsetAltitude.Value             /   (double) MaxInteger32Bit  )    * MetersToFeet                       );
+        telemetry.RadioAltitude =        (int) ( ( _offsetRadioAltitude.Value        /   (double) MaxInteger16Bit  )    * MetersToFeet                       );
+        telemetry.AltimeterPressure =          ( ( _offsetAltimeterPressure.Value    /   (double) MaxInteger8Bit   )    * PascalsToInchMercury               );
         
-        telemetry.TrueHeading = (int)(((double)_offsetHeading.Value) * 360 / (65536.0 * 65536.0)); 
-        int magneticVariation =  (int)(((double)_offsetMagneticVariation.Value) * 360 / (65536.0)); 
-        telemetry.IndicatedHeading = telemetry.TrueHeading - magneticVariation;
+        telemetry.TrueHeading =          (int) ( ( _offsetHeading.Value              /   (double) MaxInteger32Bit  )    * HeadingFullCircle                  ); 
+        
+        int magneticVariation =          (int) ( ( _offsetMagneticVariation.Value    /   (double) MaxInteger16Bit  )    * HeadingFullCircle                  );
+        telemetry.IndicatedHeading =               telemetry.TrueHeading                                                - magneticVariation                   ;
        
-        telemetry.Pitch = (int)((_offsetPitch.Value * 360.0) / 65536.0 / 65536.0) * -1;
-        telemetry.Bank = (int)((_offsetBank.Value * 360.0) / 65536.0 / 65536.0) * -1;
+        telemetry.Pitch =                (int) ( ( _offsetPitch.Value                /   (double) MaxInteger32Bit  )    * HeadingFullCircle * PitchFactor    );
+        telemetry.Bank =                 (int) ( ( _offsetBank.Value                 /   (double) MaxInteger32Bit  )    * HeadingFullCircle * BankFactor     );
 
-        telemetry.TurnRate = (int)((_offsetTurnRate.Value / 512.0) * 3.0);
+        telemetry.TurnRate =             (int) ( ( _offsetTurnRate.Value             /   (double) MaxInteger9Bit   )    * TurnRateFactor                     );
 
-        telemetry.GForce = (_offsetGForce.Value) / 625.0;
+        telemetry.GForce =                     (   _offsetGForce.Value                                                  / GForceConversionFactor             );
         
-        telemetry.Paused = _offsetPauseIndicator.Value == 1;
-        telemetry.SlewMode = _offsetSlewMode.Value == 1; 
-        
+        telemetry.Paused =                         _offsetPauseIndicator.Value                                          == 1                                  ;
+        telemetry.SlewMode =                       _offsetSlewMode.Value                                                == 1                                  ; 
+       
         return telemetry;
     }
 }
