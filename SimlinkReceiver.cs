@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LegacySimBridge;
 
-public class SimlinkService(ILogger<SimlinkService> logger) : IFSUIPCReceiver
+public class SimlinkReceiver(ILogger<SimlinkReceiver> logger) : ITelemetryReceiver, IFSUIPCReceiver
 {
     private const string MutexName = "SIMLINK_PLUGIN";
     private const string MappingName = "NGSIMCONNECT";
@@ -15,21 +15,7 @@ public class SimlinkService(ILogger<SimlinkService> logger) : IFSUIPCReceiver
     
     private MemoryMappedViewAccessor _accessor;
 
-    public bool Connect()
-    {
-        CreateSimlinkMutex();
-        OpenSimlinkMemoryMap();
-        return true;
-    }
-    
-    public bool Send(FSUIPCTelemetry telemetry)
-    {
-        string json = EncodeFSUIPCTelemetry(telemetry);
-        WriteToSimlinkMemoryMap(json);
-        return true;
-    }
-    
-    private void CreateSimlinkMutex()
+    public bool Start()
     {
         using var pluginMutex = new Mutex(false, MutexName, out var createdNew);
 
@@ -43,29 +29,25 @@ public class SimlinkService(ILogger<SimlinkService> logger) : IFSUIPCReceiver
         }
         
         logger.LogInformation($"Mutex {MutexName} has been accessed.");
+        
+        using var mmf =
+            MemoryMappedFile.CreateOrOpen(MappingName, MappingSizeBytes, MemoryMappedFileAccess.ReadWrite);
+        _accessor = mmf.CreateViewAccessor(0, MappingSizeBytes, MemoryMappedFileAccess.Write);
+        
+        return true;
     }
 
-    private void OpenSimlinkMemoryMap()
+    public bool Stop()
     {
-        try
-        {
-            using var mmf =
-                MemoryMappedFile.CreateOrOpen(MappingName, MappingSizeBytes, MemoryMappedFileAccess.ReadWrite);
-
-            _accessor = mmf.CreateViewAccessor(0, MappingSizeBytes, MemoryMappedFileAccess.Write);
-            
-            logger.LogInformation($"Memory Map {MappingName} has been successfully opened.");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogError(ex,
-                $"Access to Memory Map {MappingName} has been denied. Check if you have sufficient privileges.");
-        }
-        catch (IOException ex)
-        {
-            logger.LogError(ex,
-                $"Unable to write to to Memory Map {MappingName}.");
-        }
+        _accessor.Dispose();
+        return false;
+    }
+    
+    public bool Send(FSUIPCTelemetry telemetry)
+    {
+        string json = EncodeFSUIPCTelemetry(telemetry);
+        WriteToSimlinkMemoryMap(json);
+        return true;
     }
     
     private void WriteToSimlinkMemoryMap(string text)
