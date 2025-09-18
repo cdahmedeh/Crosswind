@@ -30,6 +30,8 @@ Remember that Flight Simulator and Simlink must be both running.
 
 Your simulator must have the [FSUIPC module](https://www.fsuipc.com/) or [XPUIPC plugin](https://fsacars.com/downloads/xpuipc/) installed.
 
+For more detailed log messages add the ```-v``` or ```--verbose``` parameter.
+
 ## Requirements
 
 Crosswind requires .NET Desktop Runtime 8.0.414 to run. You can [download it here on the official Microsoft .NET download website](https://dotnet.microsoft.com/en-us/download/dotnet/8.0).
