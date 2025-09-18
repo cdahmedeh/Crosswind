@@ -6,6 +6,12 @@ It is currently a proof-of-concept to allow using Microsoft Flight Simulator 200
 
 Only available through the command line for now.
 
+## Demo
+
+Here you can see Navigraph Charts working in conjuction with Microsoft Flight Simulator 2004.
+
+![Screenshot](./Screenshot.jpg)
+
 ## Usage
 
 Download the latest release and extract the archive anywhere on your system. Within a command line, you can run the `crosswind` command.
