@@ -5,8 +5,14 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+
+        <Product>Crosswind</Product>
+        <AssemblyName>Crosswind</AssemblyName>
+        <Authors>Ahmed El-Hajjar</Authors>
+        <Company>Ahmed El-Hajjar</Company>
         
         <Version>0.1</Version>
+        <InformationalVersion>$(Version)+$(SourceRevisionId)</InformationalVersion>
     </PropertyGroup>
 
     <ItemGroup>
