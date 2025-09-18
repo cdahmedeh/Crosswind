@@ -10,7 +10,11 @@ Only available through the command line for now.
 
 Here you can see Navigraph Charts working in conjuction with Microsoft Flight Simulator 2004.
 
-![Screenshot](./Screenshot.jpg)
+![FS2004 Screenshot](./Screenshot-FS2004.jpg)
+
+And yes, you're not crazy and look closely, this is Flight Simulator 98 with Navigraph!
+
+![FS2004 Screenshot](./Screenshot-FS98.jpg)
 
 ## Usage
 
@@ -19,10 +23,12 @@ Download the latest release and extract the archive anywhere on your system. Wit
 For example, this is the command that you can use to bridge Flight Simulator 2004 with Navigraph Charts. FS2004 is using FSUIPC as an interface and Charts relies on Simlink.
 
 ```
-.\crosswind.exe -i fsuipc -o simlink
+.\crosswind.exe -i fsuipc -t simlink -s 1
 ```
 
 Remember that Flight Simulator and Simlink must be both running.
+
+Your simulator must have the [FSUIPC module](https://www.fsuipc.com/) or [XPUIPC plugin](https://fsacars.com/downloads/xpuipc/) installed.
 
 ## Requirements
 
