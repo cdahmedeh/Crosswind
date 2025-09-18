@@ -8,12 +8,18 @@ public interface ITelemetryService<out T> where T : Telemetry
     T GetTelemetry();
 }
 
+public interface ITelemetryReceiver
+{
+    bool Start();
+    bool Stop();
+}
+
 public interface IFSUIPCReceiver
 {
     bool Send(FSUIPCTelemetry telemetry);
 }
 
-public class Telemetry
+public record Telemetry
 {
     // Information
     public string SquawkCode { get; set; }

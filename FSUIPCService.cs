@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LegacySimBridge;
 
-public class FSUIPCTelemetry : Telemetry;
+public record FSUIPCTelemetry : Telemetry;
 
 /// For pulling in flight data from FSUIPC.
 public class FSUIPCService(ILogger<FSUIPCService> logger) : ITelemetryService<FSUIPCTelemetry>
