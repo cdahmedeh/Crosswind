@@ -1,7 +1,7 @@
 ﻿using FSUIPC;
 using Microsoft.Extensions.Logging;
 
-namespace LegacySimBridge;
+namespace Crosswind;
 
 public record FSUIPCTelemetry : Telemetry;
 
@@ -25,7 +25,7 @@ public record FSUIPCTelemetry : Telemetry;
 public class FSUIPCService(ILogger<FSUIPCService> logger) : ITelemetryService<FSUIPCTelemetry>
 {
     // FSUIPC Group for association with this application instance and refreshing offset values.
-    private const string GroupName = "LegacySimBridge";
+    private const string GroupName = "Crosswind";
 
     // FSUIPC Offset Numerical Conversion
     private const int   MaxInteger7Bit  = 1 << 7;

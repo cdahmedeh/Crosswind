@@ -1,4 +1,4 @@
-﻿namespace LegacySimBridge;
+﻿namespace Crosswind;
 
 public interface ITelemetryService<out T> where T : Telemetry
 {
