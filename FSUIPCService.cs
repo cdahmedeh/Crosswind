@@ -6,6 +6,22 @@ namespace LegacySimBridge;
 public record FSUIPCTelemetry : Telemetry;
 
 /// For pulling in flight data from FSUIPC.
+///
+/// There's not that much to say here. FSUIPC is incredibly straight-forward. You just read values from offests that
+/// FUSIPC offers and keep processing them for every update.
+///
+/// The real challenge is just finding the conversion factors to convert them into units that can be worked with. Often,
+/// they have to be converted from a binary format by dividing with an integer of specific bit size. And then convert
+/// the unit that FSUIPC provides to ones that are normally used in aviation. For example, converting meters per seconds
+/// to knots for ground speed.
+///
+/// Offsets are easily found online, I used https://www.projectmagenta.com/all-fsuipc-offsets/
+///
+/// Finally, FSUIPC is quite universal, and works on every version of Microsoft Flight Simulator all the way back to
+/// version 98. Every version of Prepar3D. And X-Plane 9 to 11.
+///
+/// Uses the FSUIPC Client DLL for .NET by Paul Henty. http://fsuipc.paulhenty.com/#licence
+///
 public class FSUIPCService(ILogger<FSUIPCService> logger) : ITelemetryService<FSUIPCTelemetry>
 {
     // FSUIPC Group for association with this application instance and refreshing offset values.
