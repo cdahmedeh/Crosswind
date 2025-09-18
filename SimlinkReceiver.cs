@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace LegacySimBridge;
+namespace Crosswind;
 
 /// This is for sending telemetry to Navigraph Simlink used by Navigraph Charts
 /// and a few of their other tools. Simlink is the bridge between the flight
