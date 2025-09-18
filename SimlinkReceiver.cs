@@ -12,7 +12,7 @@ namespace LegacySimBridge;
 ///
 /// Keep in mind that all of this research was done through clean-room
 /// reverse-engineering. Navigraph doesn't provide any documentation about this.
-/// Much of this is a bit of hack, and I'm taking only basic precautious.
+/// Much of this is a bit of hack, and I'm taking only basic precautions.
 ///
 /// Essentially, the simulator will send position data to Simlink, and then will
 /// publish it to Navigraph's cloud. Navgiraph Charts then picks that up and
