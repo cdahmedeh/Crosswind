@@ -18,7 +18,7 @@ And yes, you're not crazy and look closely, this is Flight Simulator 98 with Nav
 
 ## Usage
 
-Download the latest release and extract the archive anywhere on your system. Within a command line, you can run the `crosswind` command.
+Download the [latest release](https://github.com/cdahmedeh/Crosswind/releases/) and extract the archive anywhere on your system. Within a command line, you can run the `crosswind` command.
 
 For example, this is the command that you can use to bridge Flight Simulator 2004 with Navigraph Charts. FS2004 is using FSUIPC as an interface and Charts relies on Simlink.
 
