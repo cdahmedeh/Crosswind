@@ -4,7 +4,7 @@ Crosswind is a compatibility layer that connects various modern EFBs to older de
 
 It is currently a proof-of-concept to allow using Microsoft Flight Simulator 2004 with Navigraph Charts. More EFBs are planned to be supported like LittleNavmap and ForeFlight. With possible expansions to support simulators other than MSFS and X-Plane like FlightGear, Aerofly FS, and Condor. 
 
-Only available through the command line for now. I wrote it mainly because I still use FS9.
+Only available through the command line for now. [I wrote it mainly because I still use FS2004](https://www.cdahmedeh.net/blog/2022/3/16/mnjxkvppqlyo35nzi0zksr399lj4le).
 
 ## Demo
 
