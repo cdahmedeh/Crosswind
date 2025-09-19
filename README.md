@@ -12,9 +12,13 @@ Here you can see Navigraph Charts working in conjuction with Microsoft Flight Si
 
 ![FS2004 Screenshot](./Screenshot-FS2004.jpg)
 
+X-Plane 9, quite of a classic of a sim, through XPUIPC.
+
+![XP9 Screenshot](./Screenshot-XP9.jpg)
+
 And yes, you're not crazy and look closely, this is Flight Simulator 98 with Navigraph!
 
-![FS2004 Screenshot](./Screenshot-FS98.jpg)
+![FS98 Screenshot](./Screenshot-FS98.jpg)
 
 ## Usage
 
